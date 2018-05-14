@@ -1,0 +1,48 @@
+#
+# Cookbook:: hca_splunk_linux
+# Recipe:: hca_splunk_linux
+#
+# Copyright:: 2018, The Authors, All Rights Reserved.
+
+execute 'download_splunkforwarder' do
+  command "wget #{node['hca_splunk_linux']['splunk-url']}/splunkforwarder-7.0.2-03bbabbd5c0f-Linux-x86_64.gz"
+  action :run
+  not_if { ::File.exist?("#{node['hca_splunk_linux']['opt-splunkforwarder']}") }
+end
+
+execute 'copy_splunkforwarder' do
+  command "tar xvzf #{node['hca_splunk_linux']['splunk-url']}/splunkforwarder-7.0.2-03bbabbd5c0f-Linux-x86_64.gz -C /opt"
+  action :run
+  not_if { ::File.exist?("#{node['hca_splunk_linux']['opt-splunkforwarder']}") }
+end
+
+execute 'download_splunkconfig' do
+  command "wget #{node['hca_splunk_linux']['splunk-url']}/splunk_uf_config.tar"
+  action :run
+  not_if { ::File.exist?("#{node['hca_splunk_linux']['opt-splunkforwarder']}") }
+end
+
+execute 'copy_splunkconfig' do
+  command "tar xvf #{node['hca_splunk_linux']['splunk-url']}/splunk_uf_config.tar -C '#{node['hca_splunk_linux']['opt-splunkforwarder']}'/etc/apps"
+  action :run
+  not_if { ::File.exist?("#{node['hca_splunk_linux']['opt-splunkforwarder']}/etc/apps") }
+end
+
+directory "#{node['hca_splunk_linux']['opt-splunkforwarder']}" do
+  owner 'svr_uf_splunk'
+  group 'default_svr_uf_splunk'
+  mode '0755'
+  recursive true
+  notifies :run, 'execute[accept-license]', :immediately
+end
+
+execute 'accept-license' do
+  command "#{node['hca_splunk_linux']['opt-splunkforwarder']}/bin/splunk start --accept-license --answer-yes"
+  action :nothing
+  notifies :run, 'execute[enable-splunk]', :immediately
+end
+
+execute 'enable-splunk' do
+  command "sudo #{node['hca_splunk_linux']['opt-splunkforwarder']}/bin/splunk enable boot-start -user splunkacct"
+  action :nothing
+end
